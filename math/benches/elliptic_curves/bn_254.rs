@@ -28,8 +28,6 @@ pub fn bn_254_elliptic_curve_benchmarks(c: &mut Criterion) {
     let miller_loop_output = miller(&a_g1, &a_g2);
 
     let mut group = c.benchmark_group("BN254 Ops");
-    group.significance_level(0.1).sample_size(10000);
-    group.throughput(criterion::Throughput::Elements(1));
     /*
         // To Affine G1
         group.bench_function("To Affine G1", |bencher| {
@@ -99,6 +97,7 @@ pub fn bn_254_elliptic_curve_benchmarks(c: &mut Criterion) {
         });
     */
     // Ate Pairing
+    /* 
     group.bench_function("Ate Pairing", |bencher| {
         bencher.iter(|| {
             black_box(BN254AtePairing::compute_batch(&[(
@@ -117,12 +116,11 @@ pub fn bn_254_elliptic_curve_benchmarks(c: &mut Criterion) {
     group.bench_function("Miller Loop 2", |bencher| {
         bencher.iter(|| black_box(miller_2(black_box(&a_g1), black_box(&a_g2))))
     });
-
     // Final Exponentiation 1
     group.bench_function("Final Exponentiation 1", |bencher| {
         bencher.iter(|| black_box(final_exponentiation(black_box(&miller_loop_output))))
     });
-
+*/
     // Final Exponentiation 2
     group.bench_function("Final Exponentiation 2", |bencher| {
         bencher.iter(|| black_box(final_exponentiation_2(black_box(&miller_loop_output))))
