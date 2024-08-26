@@ -37,6 +37,12 @@ type G2Point = ShortWeierstrassProjectivePoint<BN254TwistCurve>;
 /// See https://hackmd.io/@jpw/bn254#Barreto-Naehrig-curves
 pub const X: u64 = 0x44e992b44a6909f1;
 
+
+// X in binary form
+pub const X_BINARY: [i32; 63] = [1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 
+1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 
+1, 1, 0, 0, 0, 1];
+
 /// Constant used in the Miller Loop.
 /// MILLER_CONSTANT = 6x + 2 = 29793968203157093288.
 /// Note that this is a representation using {1, -1, 0}, but it isn't a NAF representation
@@ -137,7 +143,7 @@ impl IsPairing for BN254AtePairing {
         pairs: &[(&Self::G1Point, &Self::G2Point)],
     ) -> Result<FieldElement<Self::OutputField>, PairingError> {
         let results: Result<Vec<Fp12E>, PairingError> = pairs
-            .par_iter()
+            .iter()
             .map(|(p, q)| {
                 if !q.is_in_subgroup() {
                     Err(PairingError::PointNotInSubgroup)
@@ -510,9 +516,9 @@ pub fn final_exponentiation_2(
 
     // Optimal hard part from the post
     // https://hackmd.io/@Wimet/ry7z1Xj-2#The-Hard-Part
-    let mx = cyclotomic_pow_x(f_easy.clone());
-    let mx2 = cyclotomic_pow_x(mx.clone());
-    let mx3 = cyclotomic_pow_x(mx2.clone());
+    let mx = cyclotomic_pow_x(&f_easy);
+    let mx2 = cyclotomic_pow_x(&mx);
+    let mx3 = cyclotomic_pow_x(&mx2);
     let mp = frobenius(&f_easy);
     let mp2 = frobenius_square(&f_easy);
     let mp3 = frobenius_cube(&f_easy);
@@ -521,7 +527,7 @@ pub fn final_exponentiation_2(
     let mx3p = frobenius(&mx3); // (m^{x^3})^p
     let mx2p2 = frobenius_square(&mx2); // (m^{x^2})^p^2
 
-    let y0 = mp * mp2 * mp3;
+    let y0 = &mp * &mp2 * &mp3;
     let y1 = f_easy.conjugate();
     let y2 = mx2p2;
     let y3 = mxp.conjugate();
@@ -652,24 +658,24 @@ fn cyclotomic_square(f: &Fp12E) -> Fp12E {
     if f == &Fp12E::one() {
         Fp12E::one()
     } else {
-        decompress(&compressed_square(compress(f)))
+        decompress(&compressed_square(&compress(f)))
     }
 }
 
-fn compressed_square(c: Vec<Fp2E>) -> Vec<Fp2E> {
-    let h0 = c[0].clone();
-    let g2 = c[1].clone();
-    let g1 = c[2].clone();
-    let h2 = c[3].clone();
+fn compressed_square(c: &[Fp2E]) -> Vec<Fp2E> {
+    let h0 = &c[0];
+    let g2 = &c[1];
+    let g1 = &c[2];
+    let h2 = &c[3];
     let non_residue = Fp2E::new([FpE::from(9), FpE::one()]);
     let ten_plus_u = Fp2E::new([FpE::from(10), FpE::one()]);
 
-    let h0_square = (&h0 + FpE::from(3) * &non_residue * &g1 * &h2).double();
+    let h0_square = (h0 + FpE::from(3) * &non_residue * g1 * h2).double();
     let g2_square = FpE::from(3)
-        * ((&g1 + &h2) * (&g1 + &non_residue * &h2) - &ten_plus_u * &g1 * &h2)
+        * ((g1 +h2) * (g1 + &non_residue * h2) - &ten_plus_u * g1 * h2)
         - g2.double();
     let g1_square = FpE::from(3)
-        * ((&h0 + &g2) * (&h0 + non_residue * &g2) - ten_plus_u * &h0 * &g2)
+        * ((h0 + g2) * (h0 + &non_residue * g2) - ten_plus_u * h0 * g2)
         - g1.double();
     let h2_square = (h2 + FpE::from(3) * h0 * g2).double();
 
@@ -723,8 +729,9 @@ fn cyclotomic_pow_x(f: Fp12E) -> Fp12E {
 }
 */
 
-fn cyclotomic_pow_x(f: Fp12E) -> Fp12E {
-    if f == Fp12E::one() {
+//last version
+fn cyclotomic_pow_x(f: &Fp12E) -> Fp12E {
+    if *f == Fp12E::one() {
         Fp12E::one()
     } else {
         let mut c = compress(&f);
@@ -734,12 +741,13 @@ fn cyclotomic_pow_x(f: Fp12E) -> Fp12E {
             if x & 1 == 1 {
                 result *= &decompress(&c);
             }
-            c = compressed_square(c);
+            c = compressed_square(&c);
             x >>= 1;
         }
         result
     }
 }
+
 
 /*
 fn cyclotomic_pow_x(f: Fp12E) -> Fp12E {
@@ -1401,7 +1409,7 @@ mod tests {
         let f = miller(&p, &q);
         let f_easy_aux = f.conjugate() * f.inv().unwrap(); // f ^ (p^6 - 1) because f^(p^6) = f.conjugate().
         let f_easy = &frobenius_square(&f_easy_aux) * f_easy_aux; // (f^{p^6 - 1})^(p^2) * (f^{p^6 - 1}).
-        assert_eq!(cyclotomic_pow_x(f_easy.clone()), f_easy.pow(X));
+        assert_eq!(cyclotomic_pow_x(&f_easy), f_easy.pow(X));
     }
 
     #[test]
