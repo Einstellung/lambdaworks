@@ -727,10 +727,10 @@ fn cyclotomic_pow_x(f: Fp12E) -> Fp12E {
     result
 
 }
-*/
 
+*/
 //last version
-fn cyclotomic_pow_x(f: &Fp12E) -> Fp12E {
+pub fn cyclotomic_pow_x(f: &Fp12E) -> Fp12E {
     if *f == Fp12E::one() {
         Fp12E::one()
     } else {
@@ -747,7 +747,6 @@ fn cyclotomic_pow_x(f: &Fp12E) -> Fp12E {
         result
     }
 }
-
 
 /*
 fn cyclotomic_pow_x(f: Fp12E) -> Fp12E {
