@@ -1,25 +1,28 @@
-use super::{
-    curve::BN254Curve,
-    field_extension::{BN254PrimeField, Degree12ExtensionField, Degree2ExtensionField},
-    twist::BN254TwistCurve,
+use super::hash_to_field::hash_to_field;
+use super::sha3::Sha3Hasher;
+
+use ibig::UBig;
+use lambdaworks_math::elliptic_curve::short_weierstrass::curves::bn_254::field_extension::{
+    BN254PrimeField, Degree12ExtensionField, Degree2ExtensionField,
 };
-use crate::field::traits::LegendreSymbol;
-use crate::unsigned_integer::element::U256;
-use crate::{
+use lambdaworks_math::elliptic_curve::short_weierstrass::curves::bn_254::{
+    curve::BN254Curve, twist::BN254TwistCurve,
+};
+use lambdaworks_math::field::traits::LegendreSymbol;
+use lambdaworks_math::unsigned_integer::element::U256;
+use lambdaworks_math::{
     cyclic_group::IsGroup,
     elliptic_curve::{short_weierstrass::traits::IsShortWeierstrass, traits::IsPairing},
     errors::PairingError,
 };
-use crate::{
+use lambdaworks_math::{
     elliptic_curve::short_weierstrass::{
         curves::bn_254::field_extension::Degree6ExtensionField,
         point::ShortWeierstrassProjectivePoint,
     },
     field::element::FieldElement,
 };
-use crate::{elliptic_curve::traits::FromAffine, traits::ByteConversion};
-use ibig::UBig;
-use lambdaworks_crypto::hash::hash_to_field::hash_to_field;
+use lambdaworks_math::{elliptic_curve::traits::FromAffine, traits::ByteConversion};
 
 type FpE = FieldElement<BN254PrimeField>;
 type Fp2E = FieldElement<Degree2ExtensionField>;
@@ -122,49 +125,50 @@ fn g1_sign_0(x: &FpE) -> u64 {
     t.to_bytes_le()[0] as u64 & 1
 }
 
+///  For the expand_message the implementation that we are following has
+///   let len_per_elm = 48;
+/// len_in_bytes = count * len_per_elm;
+//  let len_in_bytes = count * len_per_elm;
+/// and count is 2s
 mod tests {
     use super::*;
-    use crate::elliptic_curve::short_weierstrass::curves::bn_254::hash_to_g1::map_to_curve;
+    use crate::hash::hash_to_field::hash_to_field;
 
     #[test]
     #[allow(non_snake_case)]
     fn map_to_curve_test() {
         let u = hash_to_field(
-            Sha3Hasher::expand_message(b"abc", b"QUUX-V01-CS02-with-BN254G1_XMD:SHA-256_SVDW_RO_"),
+            &Sha3Hasher::expand_message(
+                b"abc",
+                b"QUUX-V01-CS02-with-BN254G1_XMD:SHA-256_SVDW_RO_",
+                64,
+            )
+            .unwrap(),
             2,
         );
-
+        let q0 = map_to_curve(&u[0]);
+        let q1 = map_to_curve(&u[1]);
         assert!(
-            u[0] == FpE::from_hex_unchecked(
-                "11945105B5E3D3B9392B5A2318409CBC28B7246AA47FA30DA5739907737799A9"
-            )
-        );
-        assert!(
-            u[1] == FpE::from_hex_unchecked(
-                "1255FC9AD5A6E0FB440916F091229BDA611C41BE2F2283C3D8F98C596BE4C8C9"
-            )
-        );
-        let q0 = map_to_curve(u[0]);
-        let q1 = map_to_curve(u[1]);
-        assert!(
-            q0 == G1::new(
-                FpE::from_hex_unchecked(
+            q0 == G1Point::from_affine(
+                FpE::new(U256::from_hex_unchecked(
                     "1452C8CC24F8DEDC25B24D89B87B64E25488191CECC78464FEA84077DD156F8D"
-                ),
-                FpE::from_hex_unchecked(
+                )),
+                FpE::new(U256::from_hex_unchecked(
                     "209C3633505BA956F5CE4D974A868DB972B8F1B69D63C218D360996BCEC1AD41"
-                )
+                ))
             )
+            .unwrap()
         );
         assert!(
-            q1 == G1::new(
-                FpE::from_hex_unchecked(
+            q1 == G1Point::from_affine(
+                FpE::new(U256::from_hex_unchecked(
                     "4E8357C98524E6208AE2B771E370F0C449E839003988C2E4CE1EAF8D632559F"
-                ),
-                FpE::from_hex_unchecked(
+                )),
+                FpE::new(U256::from_hex_unchecked(
                     "4396EC43DD8EC8F2B4A705090B5892219759DA30154C39490FC4D59D51BB817"
-                )
+                ))
             )
+            .unwrap()
         );
 
         let u = FpE::hash_to_field(
@@ -206,7 +210,12 @@ mod tests {
         );
 
         let u = hash_to_field(
-            Sha3Hasher::expand_message(b"", b"QUUX-V01-CS02-with-BN254G1_XMD:SHA-256_SVDW_RO_"),
+            &Sha3Hasher::expand_message(
+                b"",
+                b"QUUX-V01-CS02-with-BN254G1_XMD:SHA-256_SVDW_RO_",
+                32, //
+            )
+            .unwrap(),
             2,
         );
         assert!(
